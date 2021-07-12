@@ -19,5 +19,5 @@ It's a sanke by C.
 
 # 🤝 Contribute
 
-Please open `//#define DEBUG` ,first.
+Please open `//#define DEBUG` ,first.  
 PR, Forks and any issue are welcome!
