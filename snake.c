@@ -4,16 +4,24 @@
 #include <stdlib.h>
 #include <windows.h>
 
-typedef struct snakeNode{
+//#define DEBUG
+
+typedef struct snakeNode {
     int x;
     int y;
     struct snakeNode *next;
+}SNAKENODE;
+
+typedef struct snake {
+    SNAKENODE *head;
+    SNAKENODE *tail;
+    int snakeLength;
 }SNAKE;
 
 typedef struct {
     int x;
     int y;
-}FEED;
+}SEED;
 
 enum key {
     W_UP    = 119,
@@ -23,109 +31,122 @@ enum key {
     Q_QUIT  = 81,
 };
 
-int windowsX = 100,windowsY = 30;
-char snakeNodeTag[5] = "⬜";
+int windowsX = 100,windowsY = 28;
+int seedColor = 31,unSeedColor = 37;
+char snakeNodeTag[5]      = "⬜";
 char clearSnakeNodeTag[5] = "  ";
 char direction = 'w';
-FEED feed;
+SEED seed;
 
+char *FormatSeedContent(int color,char seedContent[])
+{
+    sprintf(seedContent,"\33[%d;%dH\33[%dm%s\33[0m",seed.y,seed.x,color,snakeNodeTag);
+    return seedContent;
+}
 
-void InitFeed()
+void DispSeed(int color)
+{
+    char seedContent[30];
+    printf("%s",FormatSeedContent(color,seedContent));
+}
+
+void InitSeed()
 {
     srand((unsigned)time(NULL));
-    feed.x = (rand() % 96)/2 + 2;
-    feed.x += (feed.x % 2);
-    feed.y = rand() % 28 + 2;
+    seed.x = (rand() % 96)/2 + 2;
+    seed.x += (seed.x % 2);
+    seed.y = rand() % 26 + 2;
+    DispSeed(seedColor);
 }
 
-char *FeedContent(char feedContent[])
+int CheckIsEatSeed(SNAKE *snake)
 {
-    sprintf(feedContent,"\33[%d;%dH%s\33[0m",feed.y,feed.x,snakeNodeTag);
-    return feedContent;
+    return (snake->head->x == seed.x && snake->head->y == seed.y);
 }
 
-void DispFeed()
-{
-    char feedContent[30];
-    printf("%s",FeedContent(feedContent));   
-}
-
-int CheckEatFeed(SNAKE *snakeHead)
-{
-    while ((snakeHead = snakeHead->next) != 0)
-    return (snakeHead->x == feed.x && snakeHead->y == feed.y) ? 1 : 0;
-}
-
-char *FormatClearSnakeNodeContent(char snakeNodeContent[],SNAKE *snakeNode)
+char *FormatClearSnakeNodeContent(char snakeNodeContent[],SNAKENODE *snakeNode)
 {
     sprintf(snakeNodeContent,"\33[%d;%dH%s\33[0m",snakeNode->y,snakeNode->x,clearSnakeNodeTag);
     return snakeNodeContent;
 }
 
-void ClearSnakeNode(SNAKE *delSnakeNode)
+void ClearSnakeNode(SNAKENODE *delSnakeNode)
 {
     char clearSnakeNodeContent[30];
     printf("%s",FormatClearSnakeNodeContent(clearSnakeNodeContent,delSnakeNode));
 }
 
-SNAKE *DelSnakeNode(SNAKE *snakeHead)
+void DelSnakeNode(SNAKE *snake)
 {
-    SNAKE *delSnakeNode = snakeHead;
-    snakeHead = delSnakeNode->next;
+    SNAKENODE *delSnakeNode = snake->tail;
+    if (snake->head == snake->tail)
+    {
+        snake->head = snake->tail = NULL;
+    }else{
+        snake->tail = snake->tail->next;
+    }
     ClearSnakeNode(delSnakeNode);
     free(delSnakeNode);
-    return snakeHead;
 }
 
-SNAKE *AddSnakeNode(SNAKE *snakeHead)
+void AddSnakeNode(SNAKE *snake)
 {
-    SNAKE *AddSnakeNode = snakeHead;
-    while (AddSnakeNode->next != NULL)
-    {
-        AddSnakeNode = AddSnakeNode->next;
-    }
-    AddSnakeNode->next = (SNAKE *)malloc(sizeof(SNAKE));
-    AddSnakeNode->next->next = NULL;
+    SNAKE *addSnake = snake;
+    SNAKENODE *nextSnakeNode = (SNAKENODE *)malloc(sizeof(SNAKENODE));
+    nextSnakeNode->next = NULL;
     switch (direction)
     {
     case W_UP:
-        AddSnakeNode->next->x = AddSnakeNode->x;
-        AddSnakeNode->next->y = AddSnakeNode->y - (AddSnakeNode->y - 1 > 1);
+        nextSnakeNode->x = addSnake->head->x;
+        nextSnakeNode->y = addSnake->head->y - 1;
         break;
     case S_DOWN:
-        AddSnakeNode->next->x = AddSnakeNode->x;
-        AddSnakeNode->next->y = AddSnakeNode->y + (AddSnakeNode->y + 1 < windowsY);
+        nextSnakeNode->x = addSnake->head->x;
+        nextSnakeNode->y = addSnake->head->y + 1;
         break;
     case A_LEFT:
-        AddSnakeNode->next->x = AddSnakeNode->x - (2 * (AddSnakeNode->x - 2 > 0));
-        AddSnakeNode->next->y = AddSnakeNode->y;
+        nextSnakeNode->x = addSnake->head->x - 2;
+        nextSnakeNode->y = addSnake->head->y;
         break;
     case D_RIGHT:
-        AddSnakeNode->next->x = AddSnakeNode->x + (2 * (AddSnakeNode->x + 2 < windowsX));
-        AddSnakeNode->next->y = AddSnakeNode->y;
+        nextSnakeNode->x = addSnake->head->x + 2;
+        nextSnakeNode->y = addSnake->head->y;
         break;
     }
-    return snakeHead;
+    if (addSnake->head == NULL)
+    {
+        addSnake->head = addSnake->tail = nextSnakeNode;
+    }else{
+        addSnake->head->next = nextSnakeNode;
+        addSnake->head = nextSnakeNode;
+    }
 }
 
-SNAKE *SnakeMove(SNAKE *snake)
+void SnakeMove(SNAKE *snake)
 {
-    snake = AddSnakeNode(snake);
-    snake = DelSnakeNode(snake);
-    return snake;
+    AddSnakeNode(snake);
+    DelSnakeNode(snake);
 }
 
-char *FromatSnakeNodeContent(char snakeNodeContent[],SNAKE *snakeNode)
+char *FromatSnakeNodeContent(char snakeNodeContent[],SNAKENODE *snakeNode)
 {
     sprintf(snakeNodeContent,"\33[%d;%dH%s\33[0m",snakeNode->y,snakeNode->x,snakeNodeTag);
     return snakeNodeContent;
 }
 
-void DispSnake(SNAKE *snakeHead)
+void DispSnake(SNAKE *snake)
 {
     char snakeNodeContent[30];
-    while ((snakeHead = snakeHead->next) != NULL)
-    printf("%s",FromatSnakeNodeContent(snakeNodeContent,snakeHead)); 
+    printf("%s",FromatSnakeNodeContent(snakeNodeContent,snake->head));
+}
+
+void DispSnakeInfo(SNAKE *snake)
+{
+#ifdef DEBUG
+    printf("\33[1;2H *DEV Model* seed.x:%3d | seed.y:%3d | snake.x:%3d | snake.y:%3d | snakeLenght:%3d",seed.x,seed.y,snake->head->x,snake->head->y,snake->snakeLength);
+#else
+    printf("\33[1;2H Score:%3d ",snake->snakeLength * 100 - 400);
+#endif
 }
 
 void Control()
@@ -158,21 +179,45 @@ void Control()
     }
 }
 
-SNAKE *InitSnake()
+int CheckGameOver(SNAKE *snake)
 {
-    SNAKE *snake = (SNAKE *)malloc(sizeof(SNAKE));
-    snake->x = snake->y = 10;
-    snake->next = NULL;
-    for (int i = 0; i < 3; i++)
+    SNAKENODE *checkSnakeNode = snake->tail;
+    do{
+        if (snake->head->x == checkSnakeNode->x && snake->head->y == checkSnakeNode->y) return 1;
+        if (checkSnakeNode->next->next == NULL) break;
+    }while(checkSnakeNode = checkSnakeNode->next);
+    return (snake->head->y == 1 || snake->head->y == windowsY || snake->head->x == 0  || snake->head->x == windowsX);
+}
+
+void DispGameOver()
+{
+    printf("\33[11;23H  ____    _    __  __ _____    _____     _______ ____"
+           "\33[12;23H / ___|  / \\  |  \\/  | ____|  / _ \\ \\   / / ____|  _ \\"
+           "\33[13;23H| |  _  / _ \\ | |\\/| |  _|   | | | \\ \\ / /|  _| | |_) |"
+           "\33[14;23H| |_| |/ ___ \\| |  | | |___  | |_| |\\ V / | |___|  _ <"
+           "\33[15;23H \\____/_/   \\_\\_|  |_|_____|  \\___/  \\_/  |_____|_| \\_\\"
+           "\33[16;%dH Hit any to exit……\33[%d;0H\n",windowsX / 2 - 9,windowsY);
+    getch();
+}
+
+void InitSnake(SNAKE *snake)
+{
+    snake->head = snake->tail = (SNAKENODE *)malloc(sizeof(SNAKENODE));
+    snake->head->x = snake->head->y = 10;
+    snake->snakeLength = 1;
+    int i = 3;
+    while (i--)
     {
-       snake = AddSnakeNode(snake);
-    }
-    return snake;
+        DispSnake(snake);
+        AddSnakeNode(snake);
+        snake->snakeLength++;
+    } 
 }
 
 void InitWindows()
 {
-    for (int i = 0; i <= windowsY; i++)
+    system("cls");
+    for (int i = 1; i <= windowsY; i++)
     {
         for (int j = 0; j <= windowsX; j++)
         {
@@ -181,30 +226,51 @@ void InitWindows()
         }
         if (i != windowsY) printf("\033[?25l\n");
     }
-    
+}
+
+void FreeSnake(SNAKE *snake)
+{
+    SNAKENODE *snakeNode,*freeSnakeNode = snake->tail;
+    while ((snakeNode = freeSnakeNode) != NULL)
+    {
+        freeSnakeNode = snakeNode->next;
+        free(snakeNode);
+    }
 }
 
 int main()
 {
-    SNAKE *snake = InitSnake();
-    InitFeed();
+    SNAKE snake = {
+        .head = NULL,
+        .tail = NULL,
+    };
     InitWindows();
+    InitSeed();
+    InitSnake(&snake);
+    DispSnake(&snake);
     while (1)
     {
         if (kbhit())
         {
             Control();
         }else{
-            printf("\33[1;2H *DEV Model* feed.x:%3d | feed.y:%3d | snake.x:%3d | snake.y:%3d",feed.x,feed.y,snake->next->x,snake->next->y);
-            snake = SnakeMove(snake);
-            if (CheckEatFeed(snake))
+            if (CheckIsEatSeed(&snake))
             {
-                snake = AddSnakeNode(snake);
-                InitFeed();
+                DispSeed(unSeedColor);
+                InitSeed();
+                AddSnakeNode(&snake);
+                snake.snakeLength++;
+            }else {
+                SnakeMove(&snake);
+                DispSeed(seedColor);
             }
-            DispFeed();
-            DispSnake(snake);
-            Sleep(60);
+            DispSnake(&snake);
+            DispSnakeInfo(&snake);
+            if (CheckGameOver(&snake)) break;
+            Sleep(90);
         }
     }
+    FreeSnake(&snake);
+    DispGameOver();
+    return 0;
 }
